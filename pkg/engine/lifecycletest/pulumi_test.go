@@ -47,6 +47,7 @@ import (
 	"github.com/pulumi/pulumi/pkg/v3/resource/deploy"
 	"github.com/pulumi/pulumi/pkg/v3/resource/deploy/deploytest"
 	"github.com/pulumi/pulumi/pkg/v3/resource/plugin"
+	"github.com/pulumi/pulumi/sdk/v3/go/common/apitype"
 	"github.com/pulumi/pulumi/sdk/v3/go/common/diag"
 	"github.com/pulumi/pulumi/sdk/v3/go/common/diag/colors"
 	"github.com/pulumi/pulumi/sdk/v3/go/common/iter"
@@ -4397,13 +4398,10 @@ func TestSourcePositions(t *testing.T) {
 		require.NoError(t, err)
 
 		_, err = monitor.RegisterResource("pkgA:m:typB", "resC", false, deploytest.ResourceOptions{
-			Remote:         true,
-			Inputs:         inputs,
+			Remote: true,
+			Inputs: inputs,
+			// Older SDKs send only the registration position for this construct.
 			SourcePosition: fileURL(constructPos),
-			StackTrace: []pkgresource.StackFrame{
-				{SourcePosition: fileURL(constructPos)},
-				{SourcePosition: fileURL(progPos)},
-			},
 		})
 		require.NoError(t, err)
 
@@ -4442,7 +4440,13 @@ func TestSourcePositions(t *testing.T) {
 	assert.Equal(t, regURN, reg.URN)
 	assert.Equal(t, projURL(regPos), reg.SourcePosition)
 	assert.Equal(t, []pkgresource.StackFrame{
-		{SourcePosition: projURL(regPos)},
+		{
+			SourcePosition: projURL(regPos),
+			Boundary: &apitype.StackTraceBoundaryV1{
+				Kind:                 "program",
+				RegistrationPosition: projURL(regPos),
+			},
+		},
 		{SourcePosition: projURL(progPos)},
 	}, reg.StackTrace)
 
@@ -4450,7 +4454,13 @@ func TestSourcePositions(t *testing.T) {
 	assert.Equal(t, readURN, read.URN)
 	assert.Equal(t, projURL(readPos), read.SourcePosition)
 	assert.Equal(t, []pkgresource.StackFrame{
-		{SourcePosition: projURL(readPos)},
+		{
+			SourcePosition: projURL(readPos),
+			Boundary: &apitype.StackTraceBoundaryV1{
+				Kind:                 "program",
+				RegistrationPosition: projURL(readPos),
+			},
+		},
 		{SourcePosition: projURL(progPos)},
 	}, read.StackTrace)
 
@@ -4459,11 +4469,24 @@ func TestSourcePositions(t *testing.T) {
 	assert.Equal(t, projURL(providerRegPos), reg2.SourcePosition)
 	assert.Equal(t, []pkgresource.StackFrame{
 		// RegisterResource inside Construct.
-		{SourcePosition: projURL(providerRegPos)},
+		{
+			SourcePosition: projURL(providerRegPos),
+			Boundary: &apitype.StackTraceBoundaryV1{
+				Kind:                 "construct",
+				RegistrationPosition: projURL(providerRegPos),
+				ResourceType:         "pkgA:m:typB",
+				ResourceName:         "resC",
+			},
+		},
 		{SourcePosition: projURL(providerPos)},
 		// Program call that entered Construct.
-		{SourcePosition: projURL(constructPos)},
-		{SourcePosition: projURL(progPos)},
+		{
+			SourcePosition: projURL(constructPos),
+			Boundary: &apitype.StackTraceBoundaryV1{
+				Kind:                 "program",
+				RegistrationPosition: projURL(constructPos),
+			},
+		},
 	}, reg2.StackTrace)
 
 	read2 := snap.Resources[4]
@@ -4471,14 +4494,33 @@ func TestSourcePositions(t *testing.T) {
 	assert.Equal(t, projURL(providerReadPos), read2.SourcePosition)
 	assert.Equal(t, []pkgresource.StackFrame{
 		// ReadResource inside Call.
-		{SourcePosition: projURL(providerReadPos)},
+		{
+			SourcePosition: projURL(providerReadPos),
+			Boundary: &apitype.StackTraceBoundaryV1{
+				Kind:                 "call",
+				RegistrationPosition: projURL(providerReadPos),
+			},
+		},
 		{SourcePosition: projURL(providerPos)},
 		// Call inside Construct.
-		{SourcePosition: projURL(providerCallPos)},
+		{
+			SourcePosition: projURL(providerCallPos),
+			Boundary: &apitype.StackTraceBoundaryV1{
+				Kind:                 "construct",
+				RegistrationPosition: projURL(providerCallPos),
+				ResourceType:         "pkgA:m:typB",
+				ResourceName:         "resC",
+			},
+		},
 		{SourcePosition: projURL(providerPos)},
 		// Program call that entered Construct.
-		{SourcePosition: projURL(constructPos)},
-		{SourcePosition: projURL(progPos)},
+		{
+			SourcePosition: projURL(constructPos),
+			Boundary: &apitype.StackTraceBoundaryV1{
+				Kind:                 "program",
+				RegistrationPosition: projURL(constructPos),
+			},
+		},
 	}, read2.StackTrace)
 
 	read3 := snap.Resources[5]
@@ -4486,10 +4528,22 @@ func TestSourcePositions(t *testing.T) {
 	assert.Equal(t, projURL(providerReadPos), read3.SourcePosition)
 	assert.Equal(t, []pkgresource.StackFrame{
 		// ReadResource inside Call.
-		{SourcePosition: projURL(providerReadPos)},
+		{
+			SourcePosition: projURL(providerReadPos),
+			Boundary: &apitype.StackTraceBoundaryV1{
+				Kind:                 "call",
+				RegistrationPosition: projURL(providerReadPos),
+			},
+		},
 		{SourcePosition: projURL(providerPos)},
 		// Program call that entered Call.
-		{SourcePosition: projURL(callPos)},
+		{
+			SourcePosition: projURL(callPos),
+			Boundary: &apitype.StackTraceBoundaryV1{
+				Kind:                 "program",
+				RegistrationPosition: projURL(callPos),
+			},
+		},
 		{SourcePosition: projURL(progPos)},
 	}, read3.StackTrace)
 }
