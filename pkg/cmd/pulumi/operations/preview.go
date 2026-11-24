@@ -303,7 +303,7 @@ func buildImportFile(
 	})
 }
 
-func NewPreviewCmd() *cobra.Command {
+func NewPreviewCmd(hm *hints.Manager) *cobra.Command {
 	var debug bool
 	var expectNop bool
 	var message string
@@ -576,7 +576,7 @@ func NewPreviewCmd() *cobra.Command {
 			opts := backend.UpdateOptions{
 				Engine: engine.UpdateOptions{
 					CloudCredentialEnv:        cloudCredentialEnv,
-					HintRecorder:              hints.RecordProviderHint,
+					HintRecorder:              hm.RecordProviderHint,
 					ParallelDiff:              env.ParallelDiff.Value(),
 					LocalPolicyPacks:          engine.MakeLocalPolicyPacks(policyPackPaths, policyPackConfigPaths),
 					Parallel:                  parallel,
